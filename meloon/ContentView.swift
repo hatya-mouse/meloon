@@ -2,52 +2,86 @@ import SwiftUI
 import Playgrounds
 
 struct ContentView: View {
-    @State private var currentIndex: Int = 0
-    @State private var dragOffset: CGFloat = 0
+    @Environment(\.verticalSizeClass) var verticalSizeClass
     
+    @State var listMagnification: CGFloat = 1
+
     private let colors: [Color] = [.red, .blue, .green, .orange, .black]
 
     var body: some View {
-        VStack(alignment: .center) {
-            GeometryReader { geometry in
-                ZStack {
-                    ForEach(Array(zip(colors.indices, colors)), id: \.1.self) { index, color in
-                        ZStack {
-                            color
-                            Text("\(color.description)")
-                                .font(.title)
-                                .foregroundStyle(.white)
+        GeometryReader { outerProxy in
+            if verticalSizeClass == .compact {
+                // Landscape Mode
+                ScrollView(.horizontal) {
+                    let containerHeight = outerProxy.size.height
+
+                    ScrollView(.vertical) {
+                        VStack(spacing: 0) {
+                            ForEach(colors, id: \.self) { color in
+                                ZStack {
+                                    color
+                                    Text("\(color.description)")
+                                        .font(.title)
+                                        .foregroundStyle(.white)
+                                }
+                                .frame(width: 2000, height: containerHeight)
+                            }
                         }
-                        .frame(width: geometry.size.width)
-                        .offset(x: CGFloat(index - currentIndex) * geometry.size.width + dragOffset)
+                        .scrollTargetLayout()
                     }
+                    .scrollClipDisabled()
+                    .scaleEffect(y: listMagnification)
+                    .scrollIndicators(.hidden)
+                    .scrollTargetBehavior(.viewAligned)
                 }
-                .gesture(
-                    DragGesture()
+                .simultaneousGesture(
+                    MagnifyGesture()
                         .onChanged { value in
-                            dragOffset = value.translation.width
+                            listMagnification = value.magnification
                         }
                         .onEnded { value in
-                            let trackWidth = geometry.size.width
-                            let offset = value.translation.width / trackWidth
-                            
-                            if value.velocity.width == 0 {
-                                return
+                            withAnimation {
+                                listMagnification = 1
                             }
-
-                            withAnimation(Animation.spring(duration: trackWidth / value.velocity.width)) {
-                                dragOffset = 0
-                                if value.translation.width < -offset {
-                                    currentIndex = min(currentIndex + 1, colors.count - 1)
-                                } else if value.translation.width > offset {
-                                    currentIndex = max(currentIndex - 1, 0)
+                        }
+                )
+            } else {
+                // Portrait Mode
+                ScrollView(.vertical) {
+                    let containerWidth = outerProxy.size.width
+                    
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 0) {
+                            ForEach(colors, id: \.self) { color in
+                                ZStack {
+                                    color
+                                    Text("\(color.description)")
+                                        .font(.title)
+                                        .foregroundStyle(.white)
                                 }
+                                .frame(width: containerWidth, height: 2000)
+                            }
+                        }
+                        .scrollTargetLayout()
+                    }
+                    .scrollClipDisabled()
+                    .scaleEffect(x: listMagnification)
+                    .scrollIndicators(.hidden)
+                    .scrollTargetBehavior(.viewAligned)
+                }
+                .simultaneousGesture(
+                    MagnifyGesture()
+                        .onChanged { value in
+                            listMagnification = value.magnification
+                        }
+                        .onEnded { value in
+                            withAnimation {
+                                listMagnification = 1
                             }
                         }
                 )
             }
         }
-        .padding(.horizontal, 16)
     }
 }
 
