@@ -58,9 +58,6 @@ struct ContentView: View {
 
                         TrackView(track: track, detailed: true)
                             .frame(width: availableWidth)
-                            .onTapGesture {
-                                animateDeselectTrack(width: availableWidth)
-                            }
                     } else {
                         // Track List Mode
                         ScrollView(.horizontal) {
@@ -88,11 +85,13 @@ struct ContentView: View {
                 }
             }
             .toolbar {
-                if showBackButton {
-                    ToolbarItem(placement: .topBarLeading) {
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    if showBackButton {
                         Button("Back", systemImage: "chevron.left") {
                             animateDeselectTrack(width: availableWidth)
                         }
+                    } else {
+                        Button("Home", systemImage: "house") {}
                     }
                 }
             }
@@ -103,17 +102,14 @@ struct ContentView: View {
 
     private func animateSelectTrack(index: Int, width availableWidth: CGFloat) {
         overlayOffset = .init(dx: -listScrollOffset.x, dy: -listScrollOffset.y)
+        selectedTrack = index
         animated = true
-        
-        withAnimation {
-            showBackButton = true
-        }
 
         withAnimation(trackAnimation, completionCriteria: .removed) {
+            showBackButton = true
             overlayOffset.dx = CGFloat(index) * -availableWidth
             trackWidth = availableWidth
         } completion: {
-            selectedTrack = index
             animated = false
         }
     }
@@ -122,17 +118,14 @@ struct ContentView: View {
         let index = selectedTrack ?? 0
         let targetOffset = max(0, min(CGFloat(index) * 120, CGFloat(tracks.count) * 120 - availableWidth))
         overlayOffset = .init(dx: CGFloat(index) * -availableWidth, dy: listScrollOffset.y)
+        selectedTrack = nil
         animated = true
-        
-        withAnimation {
-            showBackButton = false
-        }
 
         withAnimation(trackAnimation, completionCriteria: .removed) {
+            showBackButton = false
             overlayOffset.dx = -targetOffset
             trackWidth = 120
         } completion: {
-            selectedTrack = nil
             animated = false
             scrollPosition.scrollTo(x: targetOffset)
         }
