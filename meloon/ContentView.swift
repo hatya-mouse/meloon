@@ -1,7 +1,11 @@
 import Playgrounds
 import SwiftUI
 
-let trackAnimationSpring: Spring = .init(response: 0.35, dampingRatio: 0.85)
+let trackAnimation: Animation = .timingCurve(
+    0.25, 0.8,
+    0.35, 1.0,
+    duration: 0.25
+)
 
 struct Track: Identifiable, Hashable {
     let id: Int
@@ -9,14 +13,20 @@ struct Track: Identifiable, Hashable {
 }
 
 struct ContentView: View {
-    @Namespace private var animation
+    // MARK: States
 
     @State private var selectedTrack: Int?
-    @State private var scrollPosition: ScrollPosition = .init()
-    
+    @State private var availableWidth: CGFloat = 0
+    @State private var showBackButton: Bool = false
+
+    // Animation States
     @State private var animated: Bool = false
     @State private var trackWidth: CGFloat = 120
+    @State private var scrollPosition: ScrollPosition = .init()
     @State private var overlayOffset: CGVector = .zero
+    @State private var listScrollOffset: CGPoint = .zero
+
+    // MARK: Tracks
 
     private let tracks: [Track] = [
         Track(id: 0, color: .red),
@@ -25,14 +35,25 @@ struct ContentView: View {
         Track(id: 3, color: .orange),
         Track(id: 4, color: .black),
     ]
+    
+    // MARK: UI
 
     var body: some View {
         NavigationStack {
             GeometryReader { outerProxy in
-                let availableWidth = outerProxy.size.width
-
                 ZStack {
-                    if let selectedTrack = selectedTrack {
+                    if animated {
+                        // Track Animation Overlay
+                        HStack(spacing: 0) {
+                            ForEach(tracks) { track in
+                                TrackView(track: track)
+                                    .frame(width: trackWidth)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .offset(x: overlayOffset.dx, y: overlayOffset.dy)
+                    } else if let selectedTrack = selectedTrack {
+                        // Track Mode
                         let track = tracks[selectedTrack]
 
                         TrackView(track: track, detailed: true)
@@ -41,6 +62,7 @@ struct ContentView: View {
                                 animateDeselectTrack(width: availableWidth)
                             }
                     } else {
+                        // Track List Mode
                         ScrollView(.horizontal) {
                             HStack(spacing: 0) {
                                 ForEach(tracks) { track in
@@ -54,48 +76,63 @@ struct ContentView: View {
                         }
                         .scrollIndicators(.never)
                         .scrollPosition($scrollPosition)
-                    }
-
-                    if animated {
-                        HStack(spacing: 0) {
-                            ForEach(tracks) { track in
-                                TrackView(track: track)
-                                    .frame(width: trackWidth)
-                            }
+                        .onScrollGeometryChange(for: CGPoint.self) { geometry in
+                            geometry.contentOffset
+                        } action: { _, newValue in
+                            listScrollOffset = newValue
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .offset(x: overlayOffset.dx, y: overlayOffset.dy)
+                    }
+                }
+                .onChange(of: outerProxy.size.width, initial: true) { _, newWidth in
+                    availableWidth = newWidth
+                }
+            }
+            .toolbar {
+                if showBackButton {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Back", systemImage: "chevron.left") {
+                            animateDeselectTrack(width: availableWidth)
+                        }
                     }
                 }
             }
         }
     }
 
-    private func animateSelectTrack(index: Int, width availableWidth: CGFloat) {
-        selectedTrack = index
-        overlayOffset = .init(dx: -(scrollPosition.x ?? 0), dy: -(scrollPosition.y ?? 0))
-        animated = true
+    // MARK: Animation
 
-        withAnimation(.spring(trackAnimationSpring), completionCriteria: .removed) {
+    private func animateSelectTrack(index: Int, width availableWidth: CGFloat) {
+        overlayOffset = .init(dx: -listScrollOffset.x, dy: -listScrollOffset.y)
+        animated = true
+        
+        withAnimation {
+            showBackButton = true
+        }
+
+        withAnimation(trackAnimation, completionCriteria: .removed) {
             overlayOffset.dx = CGFloat(index) * -availableWidth
             trackWidth = availableWidth
         } completion: {
+            selectedTrack = index
             animated = false
         }
     }
 
     private func animateDeselectTrack(width availableWidth: CGFloat) {
         let index = selectedTrack ?? 0
-        selectedTrack = nil
-
         let targetOffset = max(0, min(CGFloat(index) * 120, CGFloat(tracks.count) * 120 - availableWidth))
-        overlayOffset = .init(dx: CGFloat(index) * -availableWidth, dy: scrollPosition.y ?? 0)
+        overlayOffset = .init(dx: CGFloat(index) * -availableWidth, dy: listScrollOffset.y)
         animated = true
+        
+        withAnimation {
+            showBackButton = false
+        }
 
-        withAnimation(.spring(trackAnimationSpring), completionCriteria: .removed) {
+        withAnimation(trackAnimation, completionCriteria: .removed) {
             overlayOffset.dx = -targetOffset
             trackWidth = 120
         } completion: {
+            selectedTrack = nil
             animated = false
             scrollPosition.scrollTo(x: targetOffset)
         }
