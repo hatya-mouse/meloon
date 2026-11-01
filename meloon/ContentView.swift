@@ -1,6 +1,8 @@
 import Playgrounds
 import SwiftUI
 
+let trackAnimationSpring: Spring = .init(response: 0.35, dampingRatio: 0.85)
+
 struct Track: Identifiable, Hashable {
     let id: Int
     let color: Color
@@ -74,7 +76,7 @@ struct ContentView: View {
         overlayOffset = .init(dx: -(scrollPosition.x ?? 0), dy: -(scrollPosition.y ?? 0))
         animated = true
 
-        withAnimation(.spring, completionCriteria: .removed) {
+        withAnimation(.spring(trackAnimationSpring), completionCriteria: .removed) {
             overlayOffset.dx = CGFloat(index) * -availableWidth
             trackWidth = availableWidth
         } completion: {
@@ -85,12 +87,12 @@ struct ContentView: View {
     private func animateDeselectTrack(width availableWidth: CGFloat) {
         let index = selectedTrack ?? 0
         selectedTrack = nil
-        
+
         let targetOffset = max(0, min(CGFloat(index) * 120, CGFloat(tracks.count) * 120 - availableWidth))
         overlayOffset = .init(dx: CGFloat(index) * -availableWidth, dy: scrollPosition.y ?? 0)
         animated = true
 
-        withAnimation(.spring, completionCriteria: .removed) {
+        withAnimation(.spring(trackAnimationSpring), completionCriteria: .removed) {
             overlayOffset.dx = -targetOffset
             trackWidth = 120
         } completion: {
