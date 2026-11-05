@@ -2,15 +2,12 @@ import Playgrounds
 import SwiftUI
 
 let trackAnimation: Animation = .timingCurve(
-    0.25, 0.8,
-    0.35, 1.0,
+    0.25,
+    0.8,
+    0.35,
+    1.0,
     duration: 0.25
 )
-
-struct Track: Identifiable, Hashable {
-    let id: Int
-    let color: Color
-}
 
 struct ContentView: View {
     // MARK: States
@@ -18,6 +15,11 @@ struct ContentView: View {
     @State private var selectedTrack: Int?
     @State private var availableWidth: CGFloat = 0
     @State private var showBackButton: Bool = false
+    @State private var playhead: Double = 0
+    /// The time scale before the magnification gesture.
+    @State private var oldTimeScale: Double = 1
+    /// The current time scale.
+    @State private var timeScale: Double = 1
 
     // Animation States
     @State private var animated: Bool = false
@@ -28,14 +30,14 @@ struct ContentView: View {
 
     // MARK: Tracks
 
-    private let tracks: [Track] = [
-        Track(id: 0, color: .red),
-        Track(id: 1, color: .blue),
-        Track(id: 2, color: .green),
-        Track(id: 3, color: .orange),
-        Track(id: 4, color: .black),
+    private let tracks: [any Track] = [
+        AudioTrack(name: "Red", color: .init(r: 255, g: 0, b: 0)),
+        AudioTrack(name: "Blue", color: .init(r: 0, g: 239, b: 255)),
+        AudioTrack(name: "Green", color: .init(r: 24, g: 124, b: 0)),
+        AudioTrack(name: "Orange", color: .init(r: 255, g: 165, b: 0)),
+        AudioTrack(name: "Black", color: .init(r: 26, g: 26, b: 26)),
     ]
-    
+
     // MARK: UI
 
     var body: some View {
@@ -45,8 +47,8 @@ struct ContentView: View {
                     if animated {
                         // Track Animation Overlay
                         HStack(spacing: 0) {
-                            ForEach(tracks) { track in
-                                TrackView(track: track)
+                            ForEach(tracks, id: \.id) { track in
+                                TrackListItemView(track: track)
                                     .frame(width: trackWidth)
                             }
                         }
@@ -56,17 +58,22 @@ struct ContentView: View {
                         // Track Mode
                         let track = tracks[selectedTrack]
 
-                        TrackView(track: track, detailed: true)
+                        TrackDetailView(track: track)
                             .frame(width: availableWidth)
                     } else {
                         // Track List Mode
                         ScrollView(.horizontal) {
                             HStack(spacing: 0) {
-                                ForEach(tracks) { track in
-                                    TrackView(track: track)
+                                ForEach(tracks.enumerated(), id: \.element.id) {
+                                    index,
+                                    track in
+                                    TrackListItemView(track: track)
                                         .frame(width: 120)
                                         .onTapGesture {
-                                            animateSelectTrack(index: track.id, width: availableWidth)
+                                            animateSelectTrack(
+                                                index: index,
+                                                width: availableWidth
+                                            )
                                         }
                                 }
                             }
@@ -79,10 +86,20 @@ struct ContentView: View {
                             listScrollOffset = newValue
                         }
                     }
+
+                    Rectangle()
+                        .fill(Color.accentColor)
+                        .frame(width: availableWidth, height: 2)
+                        .position(x: availableWidth * 0.5, y: playhead * timeScale)
                 }
-                .onChange(of: outerProxy.size.width, initial: true) { _, newWidth in
+                .onChange(of: outerProxy.size.width, initial: true) {
+                    _,
+                    newWidth in
                     availableWidth = newWidth
                 }
+                .gesture(MagnifyGesture().onChanged { value in
+                    timeScale = oldTimeScale * value.magnification
+                })
             }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarLeading) {
@@ -116,8 +133,17 @@ struct ContentView: View {
 
     private func animateDeselectTrack(width availableWidth: CGFloat) {
         let index = selectedTrack ?? 0
-        let targetOffset = max(0, min(CGFloat(index) * 120, CGFloat(tracks.count) * 120 - availableWidth))
-        overlayOffset = .init(dx: CGFloat(index) * -availableWidth, dy: listScrollOffset.y)
+        let targetOffset = max(
+            0,
+            min(
+                CGFloat(index) * 120,
+                CGFloat(tracks.count) * 120 - availableWidth
+            )
+        )
+        overlayOffset = .init(
+            dx: CGFloat(index) * -availableWidth,
+            dy: listScrollOffset.y
+        )
         selectedTrack = nil
         animated = true
 
