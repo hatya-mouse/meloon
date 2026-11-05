@@ -18,9 +18,14 @@ struct TrackDetailView: View {
                 Text(track.name)
                     .font(.title)
                     .foregroundStyle(.white)
-                
+
                 Text(track.name)
                     .font(.caption)
+            }
+        }
+        .onTapGesture {
+            if let audioTrack = track as? AudioTrack {
+                audioTrack.record()
             }
         }
     }
