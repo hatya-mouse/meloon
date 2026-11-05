@@ -60,6 +60,25 @@ struct ContentView: View {
 
                         TrackDetailView(track: track)
                             .frame(width: availableWidth)
+                            .toolbar {
+                                ToolbarItemGroup(placement: .bottomBar) {
+                                    if let audioTrack = track as? AudioTrack {
+                                        if audioTrack.isRecording {
+                                            Button("Record", systemImage: "record.circle.fill") {
+                                                audioTrack.stopRecord()
+                                            }
+                                        } else {
+                                            Button("Record", systemImage: "record.circle") {
+                                                audioTrack.record()
+                                            }
+                                        }
+
+                                        Button("Play", systemImage: "play") {
+                                            audioTrack.playAudio()
+                                        }
+                                    }
+                                }
+                            }
                     } else {
                         // Track List Mode
                         ScrollView(.horizontal) {

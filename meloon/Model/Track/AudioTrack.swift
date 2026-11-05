@@ -17,7 +17,9 @@ class AudioTrack: Track {
     var audioFileURL: URL?
     /// Audio format metadata.
     var format: AVAudioFormat?
-    /// Recorder for the audio track.
+    /// Audio player for the audio track.
+    var audioPlayer: AVAudioPlayer?
+    /// Audio recorder for the audio track.
     let recorder = AudioRecorder()
     
     /// Whether the track is recording.
@@ -36,8 +38,11 @@ class AudioTrack: Track {
     /// Starts recording audio.
     func record() {
         do {
-            audioFileURL = audioFileURL ?? generateAudioURL()
-            try recorder.record(to: audioFileURL!)
+            guard let url = audioFileURL ?? generateAudioURL() else {
+                return
+            }
+            audioFileURL = url
+            try recorder.record(to: url)
         } catch {
             print("Recorder Error: \(error)")
         }
@@ -47,9 +52,29 @@ class AudioTrack: Track {
     func stopRecord() {
         recorder.stopRecord()
     }
-    
+
+    /// Plays the recorded audio.
+    func playAudio() {
+        guard let url = audioFileURL else { return }
+
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.play()
+        } catch let error {
+            print("Error playing audio: \(error.localizedDescription)")
+        }
+    }
+
     /// Generates a new URL for an audio file.
-    func generateAudioURL() -> URL {
-        return URL.temporaryDirectory.appendingPathComponent("meloon", conformingTo: .directory).appendingPathComponent("audio.caf", conformingTo: .audio)
+    func generateAudioURL() -> URL? {
+        do {
+            try FileManager.default.createDirectory(at: URL.temporaryDirectory, withIntermediateDirectories: true)
+            return URL.temporaryDirectory.appendingPathComponent("audio", conformingTo: .audio)
+        } catch {
+            return nil
+        }
     }
 }

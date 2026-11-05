@@ -37,7 +37,7 @@ class AudioRecorder {
                 }
             }
         }
-        
+
         try engine.start()
     }
     
