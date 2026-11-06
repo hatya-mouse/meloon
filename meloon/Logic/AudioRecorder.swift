@@ -61,4 +61,40 @@ class AudioRecorder {
             engine.connect(mixerNode, to: mainMixerNode, format: mixerFormat)
         }
     }
+    
+    func startRecording() throws {
+        let tapNode: AVAudioNode = mixerNode
+        let format = tapNode.outputFormat(forBus: 0)
+
+        if #available(iOS 27.0, *) {
+            try tapNode.installAudioTap(onBus: 0, bufferSize: 4096, format: format) { buffer, time in
+                // Do something here
+            }
+        } else {
+            tapNode.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, time in
+                // Do something here
+            }
+        }
+        
+        try engine.start()
+        state = .recording
+    }
+    
+    func resumeRecording() throws {
+        try engine.start()
+        state = .recording
+    }
+    
+    func pauseRecording() {
+        engine.pause()
+        state = .paused
+    }
+    
+    func stopRecording() {
+        // Remove existing taps on nodes
+        mixerNode.removeTap(onBus: 0)
+        
+        engine.stop()
+        state = .stopped
+    }
 }
