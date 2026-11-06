@@ -44,7 +44,7 @@ class AudioTrack: Track {
             audioFileURL = url
             try recorder.record(to: url)
         } catch {
-            print("Recorder Error: \(error)")
+            print("Recorder Error: \(error.localizedDescription)")
         }
     }
 
