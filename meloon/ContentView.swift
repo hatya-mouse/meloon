@@ -14,7 +14,7 @@ struct ContentView: View {
 
     @State private var selectedTrack: Int?
     @State private var availableWidth: CGFloat = 0
-    @State private var showBackButton: Bool = false
+    @State private var showTrackToolbar: Bool = false
     @State private var playhead: Double = 0
     /// The time scale before the magnification gesture.
     @State private var oldTimeScale: Double = 1
@@ -48,7 +48,7 @@ struct ContentView: View {
                         // Track Animation Overlay
                         HStack(spacing: 0) {
                             ForEach(tracks, id: \.id) { track in
-                                TrackListItemView(track: track)
+                                TrackItemView(track: track, detailed: false)
                                     .frame(width: trackWidth)
                             }
                         }
@@ -58,27 +58,8 @@ struct ContentView: View {
                         // Track Mode
                         let track = tracks[selectedTrack]
 
-                        TrackDetailView(track: track)
+                        TrackItemView(track: track, detailed: true)
                             .frame(width: availableWidth)
-                            .toolbar {
-                                ToolbarItemGroup(placement: .bottomBar) {
-                                    if let audioTrack = track as? AudioTrack {
-                                        if audioTrack.isRecording {
-                                            Button("Record", systemImage: "record.circle.fill") {
-                                                audioTrack.stopRecord()
-                                            }
-                                        } else {
-                                            Button("Record", systemImage: "record.circle") {
-                                                audioTrack.record()
-                                            }
-                                        }
-
-                                        Button("Play", systemImage: "play") {
-                                            audioTrack.playAudio()
-                                        }
-                                    }
-                                }
-                            }
                     } else {
                         // Track List Mode
                         ScrollView(.horizontal) {
@@ -86,7 +67,7 @@ struct ContentView: View {
                                 ForEach(tracks.enumerated(), id: \.element.id) {
                                     index,
                                     track in
-                                    TrackListItemView(track: track)
+                                    TrackItemView(track: track, detailed: false)
                                         .frame(width: 120)
                                         .onTapGesture {
                                             animateSelectTrack(
@@ -122,13 +103,18 @@ struct ContentView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarLeading) {
-                    if showBackButton {
+                    if showTrackToolbar {
                         Button("Back", systemImage: "chevron.left") {
                             animateDeselectTrack(width: availableWidth)
                         }
                     } else {
                         Button("Home", systemImage: "house") {}
                     }
+                }
+            }
+            .toolbar {
+                if showTrackToolbar, let selectedTrack = selectedTrack {
+                    TrackToolbar(track: tracks[selectedTrack])
                 }
             }
         }
@@ -142,7 +128,7 @@ struct ContentView: View {
         animated = true
 
         withAnimation(trackAnimation, completionCriteria: .removed) {
-            showBackButton = true
+            showTrackToolbar = true
             overlayOffset.dx = CGFloat(index) * -availableWidth
             trackWidth = availableWidth
         } completion: {
@@ -163,14 +149,14 @@ struct ContentView: View {
             dx: CGFloat(index) * -availableWidth,
             dy: listScrollOffset.y
         )
-        selectedTrack = nil
         animated = true
 
         withAnimation(trackAnimation, completionCriteria: .removed) {
-            showBackButton = false
+            showTrackToolbar = false
             overlayOffset.dx = -targetOffset
             trackWidth = 120
         } completion: {
+            selectedTrack = nil
             animated = false
             scrollPosition.scrollTo(x: targetOffset)
         }
