@@ -100,14 +100,10 @@ class AudioRecorder {
 
             switch interruptionType {
             case .began:
-                self.isInterrupted = true
-
                 if self.state == .recording {
                     self.pauseRecording()
                 }
             case .ended:
-                self.isInterrupted = false
-
                 try? AVAudioSession.sharedInstance().setActive(
                     true,
                     options: .notifyOthersOnDeactivation
@@ -162,13 +158,15 @@ class AudioRecorder {
     // MARK: Recording
 
     func startRecording() throws {
+        let format = mixerNode.inputFormat(forBus: 0)
+
         if #available(iOS 27.0, *) {
-            try mixerNode.installAudioTap(onBus: 0, bufferSize: 4096, format: nil) { buffer, time in
+            try mixerNode.installAudioTap(onBus: 0, bufferSize: 4096, format: format) { buffer, time in
                 print("Audio Tap Called")
                 // Do something here
             }
         } else {
-            mixerNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { buffer, time in
+            mixerNode.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, time in
                 print("Audio Tap Called")
                 // Do something here
             }

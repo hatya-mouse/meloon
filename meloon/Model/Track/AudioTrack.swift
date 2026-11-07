@@ -18,14 +18,7 @@ class AudioTrack: Track {
     /// Audio player for the audio track.
     private var audioPlayer: AVAudioPlayer?
     /// Audio recorder for the audio track.
-    var recorder: AudioRecorder?
-    
-    /// Whether the track is recording.
-    var isRecording: Bool {
-        get {
-            recorder?.state == .recording
-        }
-    }
+    private var recorder: AudioRecorder?
 
     init(id: UUID = UUID(), name: String, color: RGBColor = .init(r: 0, g: 0, b: 0, a: 0)) {
         self.id = id

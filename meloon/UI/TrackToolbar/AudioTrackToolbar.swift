@@ -8,18 +8,22 @@
 import SwiftUI
 
 struct AudioTrackToolbar: ToolbarContent {
+    @State var isRecording: Bool = false
+
     let track: AudioTrack
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
-            if track.isRecording {
+            if isRecording {
                 Button("Record", systemImage: "record.circle.fill") {
                     track.stopRecord()
+                    isRecording = false
                 }
                 .transition(.blurReplace)
             } else {
                 Button("Record", systemImage: "record.circle") {
                     track.record()
+                    isRecording = true
                 }
                 .transition(.blurReplace)
             }
