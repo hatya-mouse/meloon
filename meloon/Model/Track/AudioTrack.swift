@@ -14,18 +14,16 @@ class AudioTrack: Track {
     var color: RGBColor
 
     /// URL of the audio file.
-    var audioFileURL: URL?
-    /// Audio format metadata.
-    var format: AVAudioFormat?
+    private var audioFileURL: URL?
     /// Audio player for the audio track.
-    var audioPlayer: AVAudioPlayer?
+    private var audioPlayer: AVAudioPlayer?
     /// Audio recorder for the audio track.
-    let recorder = AudioRecorder()
+    var recorder: AudioRecorder?
     
     /// Whether the track is recording.
     var isRecording: Bool {
         get {
-            recorder.state == .recording
+            recorder?.state == .recording
         }
     }
 
@@ -33,6 +31,22 @@ class AudioTrack: Track {
         self.id = id
         self.name = name
         self.color = color
+
+        Task {
+            do {
+                let recorder = try await AudioRecorder()
+                await MainActor.run {
+                    self.recorder = recorder
+                }
+            } catch {
+                print("Error while initialization: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    @MainActor
+    fileprivate func setRecorder(_ recorder: AudioRecorder) {
+        self.recorder = recorder
     }
 
     /// Starts recording audio.
@@ -42,7 +56,7 @@ class AudioTrack: Track {
                 return
             }
             audioFileURL = url
-            try recorder.record(to: url)
+            try recorder?.startRecording()
         } catch {
             print("Recorder Error: \(error.localizedDescription)")
         }
@@ -50,7 +64,7 @@ class AudioTrack: Track {
 
     /// Stops recording.
     func stopRecord() {
-        recorder.stopRecord()
+        recorder?.stopRecording()
     }
 
     /// Plays the recorded audio.

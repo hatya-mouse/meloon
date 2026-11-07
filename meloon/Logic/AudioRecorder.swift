@@ -35,18 +35,22 @@ class AudioRecorder {
 
     // MARK: Initialization
 
-    init() {
-        setupSession()
-        setupEngine()
-    }
+    init() async throws {
+        try await Task.detached(priority: .userInitiated) {
+            try self.setupSession()
+        }.value
 
-    fileprivate func setupSession() {
+        try self.setupEngine()
+        self.registerForNotifications()
+    }
+    
+    fileprivate nonisolated func setupSession() throws {
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.record)
-        try? session.setActive(true, options: .notifyOthersOnDeactivation)
+        try session.setCategory(.record)
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
     }
 
-    fileprivate func setupEngine() {
+    fileprivate func setupEngine() throws {
         engine = AVAudioEngine()
         mixerNode = AVAudioMixerNode()
 
@@ -55,40 +59,25 @@ class AudioRecorder {
 
         engine.attach(mixerNode)
 
-        makeConnections()
+        try makeConnections()
 
         // Prepare the engine in advance
         engine.prepare()
     }
 
-    fileprivate func makeConnections() {
+    fileprivate func makeConnections() throws {
         let inputNode = engine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
         if #available(iOS 27.0, *) {
-            try? engine.connectNode(
+            try engine.connectNode(
                 inputNode,
                 to: mixerNode,
+                fromBus: 0,
+                toBus: 0,
                 format: inputFormat
             )
         } else {
-            engine.connect(inputNode, to: mixerNode, format: inputFormat)
-        }
-
-        let mainMixerNode = engine.mainMixerNode
-        let mixerFormat = AVAudioFormat(
-            commonFormat: .pcmFormatInt32,
-            sampleRate: inputFormat.sampleRate,
-            channels: 1,
-            interleaved: false
-        )
-        if #available(iOS 27.0, *) {
-            try? engine.connectNode(
-                mixerNode,
-                to: mainMixerNode,
-                format: mixerFormat
-            )
-        } else {
-            engine.connect(mixerNode, to: mainMixerNode, format: mixerFormat)
+            engine.connect(inputNode, to: mixerNode, fromBus: 0, toBus: 0, format: inputFormat)
         }
     }
 
@@ -124,7 +113,7 @@ class AudioRecorder {
                     options: .notifyOthersOnDeactivation
                 )
 
-                self.handleConfigurationChange()
+                try? self.handleConfigurationChange()
 
                 if self.state == .paused {
                     try? self.resumeRecording()
@@ -138,7 +127,7 @@ class AudioRecorder {
             forName: Notification.Name.AVAudioEngineConfigurationChange,
             object: nil,
             queue: nil
-        ) { [weak self] (notification) in
+        ) { [weak self] notification in
             guard let self = self else {
                 return
             }
@@ -146,16 +135,25 @@ class AudioRecorder {
             self.configChangePending = true
 
             if !self.isInterrupted {
-                self.handleConfigurationChange()
+                try? self.handleConfigurationChange()
             } else {
                 print("deferring changes")
             }
         }
+
+        NotificationCenter.default.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification, object: nil, queue: nil) { [weak self] notification in
+            guard let self = self else {
+                return
+            }
+            
+            try? self.setupSession()
+            try? self.setupEngine()
+        }
     }
 
-    fileprivate func handleConfigurationChange() {
+    fileprivate func handleConfigurationChange() throws {
         if configChangePending {
-            makeConnections()
+            try makeConnections()
         }
 
         configChangePending = false
@@ -164,21 +162,14 @@ class AudioRecorder {
     // MARK: Recording
 
     func startRecording() throws {
-        let tapNode: AVAudioNode = mixerNode
-        let format = tapNode.outputFormat(forBus: 0)
-
         if #available(iOS 27.0, *) {
-            try tapNode.installAudioTap(
-                onBus: 0,
-                bufferSize: 4096,
-                format: format
-            ) { buffer, time in
+            try mixerNode.installAudioTap(onBus: 0, bufferSize: 4096, format: nil) { buffer, time in
+                print("Audio Tap Called")
                 // Do something here
             }
         } else {
-            tapNode.installTap(onBus: 0, bufferSize: 4096, format: format) {
-                buffer,
-                time in
+            mixerNode.installTap(onBus: 0, bufferSize: 4096, format: nil) { buffer, time in
+                print("Audio Tap Called")
                 // Do something here
             }
         }
