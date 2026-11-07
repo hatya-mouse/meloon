@@ -25,7 +25,7 @@ class AudioTrack: Track {
     /// Whether the track is recording.
     var isRecording: Bool {
         get {
-            recorder.isRecording
+            recorder.state == .recording
         }
     }
 
